@@ -1,0 +1,114 @@
+{
+  "info": {
+    "name": "Foreside Beer Case",
+    "description": "Beer ordering API — microservices with gRPC.\n\nImport both environments (local + aws) alongside this collection.\nSelect the active environment from the top-right dropdown in Postman.\n\nEndpoints:\n- GET  /health       — confirm gateway is running\n- GET  /beers        — returns the full beer menu (12 beers)\n- POST /order        — place an order; streams back beer_ready events as each beer finishes, then order_complete",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Confirms the gateway is running. Returns {\"status\":\"ok\"}."
+      }
+    },
+    {
+      "name": "Get Beer Menu",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/beers",
+          "host": ["{{base_url}}"],
+          "path": ["beers"]
+        },
+        "description": "Returns all 12 available beers with their preparation time, volume, and pour time."
+      }
+    },
+    {
+      "name": "Place Order — Fast beers (watch streaming)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/order",
+          "host": ["{{base_url}}"],
+          "path": ["order"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    { \"beer_id\": 1, \"quantity\": 1 },\n    { \"beer_id\": 2, \"quantity\": 2 }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Orders 1x Pilsner Urquell (5s total) and 2x Heineken (7s total).\n\nExpected stream:\n  t=5s  → beer_ready: Pilsner Urquell\n  t=7s  → beer_ready: Heineken\n  t=7s  → order_complete (total_beers: 3)\n\nResponse is newline-delimited JSON (NDJSON). Each line is a separate event."
+      }
+    },
+    {
+      "name": "Place Order — Mixed speed (shows concurrent pouring)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/order",
+          "host": ["{{base_url}}"],
+          "path": ["order"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    { \"beer_id\": 9, \"quantity\": 1 },\n    { \"beer_id\": 1, \"quantity\": 1 },\n    { \"beer_id\": 8, \"quantity\": 1 }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Orders 1x Hoegaarden (12s), 1x Pilsner Urquell (5s), 1x Guinness (21s).\n\nExpected stream — events arrive out of request order, fastest first:\n  t=5s  → beer_ready: Pilsner Urquell\n  t=12s → beer_ready: Hoegaarden\n  t=21s → beer_ready: Guinness\n  t=21s → order_complete\n\nThis demonstrates the concurrent pouring logic."
+      }
+    },
+    {
+      "name": "Place Order — Validation error (invalid input)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/order",
+          "host": ["{{base_url}}"],
+          "path": ["order"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    { \"beer_id\": 1, \"quantity\": 99 }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Quantity 99 exceeds the maximum of 20 per beer. Gateway should reject with 400 Bad Request before reaching any microservice."
+      }
+    }
+  ]
+}

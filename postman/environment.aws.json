@@ -1,0 +1,13 @@
+{
+  "name": "Foreside — AWS",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://REPLACE_WITH_ALB_DNS_FROM_TERRAFORM_OUTPUT",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment",
+  "_comment": "After running terraform apply, replace the base_url value with the 'api_url' output from Terraform."
+}

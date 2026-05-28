@@ -1,0 +1,12 @@
+{
+  "name": "Foreside — Local (Orbstack)",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://gateway.foreside-beer-case.orb.local",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

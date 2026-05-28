@@ -1,0 +1,47 @@
+services:
+  beer-service:
+    build:
+      context: .
+      dockerfile: beer-service/Dockerfile
+    networks:
+      - internal
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "50051"
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    networks:
+      - internal
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "50052"
+      BEER_SERVICE_URL: "beer-service:50051"
+    depends_on:
+      - beer-service
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    networks:
+      - internal
+    ports:
+      - "3000:3000"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      BEER_SERVICE_URL: "beer-service:50051"
+      ORDER_SERVICE_URL: "order-service:50052"
+    depends_on:
+      - beer-service
+      - order-service
+    restart: unless-stopped
+
+networks:
+  internal:
+    driver: bridge

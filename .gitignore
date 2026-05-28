@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Compiled TypeScript output
+dist/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Terraform — providers and state (never commit state or secrets)
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfvars
+
+# Terraform lock file is intentionally committed — pins provider versions
+# !terraform/.terraform.lock.hcl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Note: src/proto/*.ts files are generated but intentionally committed
+# so reviewers can run the services without needing protoc installed.
+# Regenerate with: npm run generate (inside each service directory)

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package beer;
+
+service BeerService {
+  rpc GetBeers(GetBeersRequest) returns (GetBeersResponse);
+  rpc GetBeersByIds(GetBeersByIdsRequest) returns (GetBeersResponse);
+}
+
+message GetBeersRequest {}
+
+message GetBeersByIdsRequest {
+  repeated int32 ids = 1;
+}
+
+message Beer {
+  int32 id = 1;
+  string name = 2;
+  int32 bartender_preparation_time = 3;
+  int32 volume = 4;
+  int32 pour_time = 5;
+}
+
+message GetBeersResponse {
+  repeated Beer beers = 1;
+}
