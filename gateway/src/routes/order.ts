@@ -26,7 +26,7 @@ const orderSchema = {
           required: ['beer_id', 'quantity'],
           additionalProperties: false,
           properties: {
-            beer_id: { type: 'integer', minimum: 1 },
+            beer_id: { type: 'integer', minimum: 1, maximum: 12 },
             quantity: { type: 'integer', minimum: 1, maximum: 20 },
           },
         },
@@ -81,6 +81,7 @@ export async function orderRoutes(fastify: FastifyInstance): Promise<void> {
 
       grpcStream.on('error', (err: Error) => {
         request.log.error({ correlationId, err }, 'OrderService stream error');
+        reply.raw.write(JSON.stringify({ event: 'error', message: err.message }) + '\n');
         reply.raw.end();
         resolve();
       });

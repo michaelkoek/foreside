@@ -82,7 +82,8 @@ resource "aws_ecs_task_definition" "beer_service" {
 
     environment = [
       { name = "HOST", value = "0.0.0.0" },
-      { name = "PORT", value = "50051" }
+      { name = "PORT", value = "50051" },
+      { name = "LOG_LEVEL", value = "info" }
     ]
 
     logConfiguration = {
@@ -114,7 +115,8 @@ resource "aws_ecs_task_definition" "order_service" {
     environment = [
       { name = "HOST", value = "0.0.0.0" },
       { name = "PORT", value = "50052" },
-      { name = "BEER_SERVICE_URL", value = "beer-service.${var.project_name}.local:50051" }
+      { name = "BEER_SERVICE_URL", value = "beer-service.${var.project_name}.local:50051" },
+      { name = "LOG_LEVEL", value = "info" }
     ]
 
     logConfiguration = {
@@ -147,7 +149,8 @@ resource "aws_ecs_task_definition" "gateway" {
       { name = "HOST", value = "0.0.0.0" },
       { name = "PORT", value = "3000" },
       { name = "BEER_SERVICE_URL", value = "beer-service.${var.project_name}.local:50051" },
-      { name = "ORDER_SERVICE_URL", value = "order-service.${var.project_name}.local:50052" }
+      { name = "ORDER_SERVICE_URL", value = "order-service.${var.project_name}.local:50052" },
+      { name = "LOG_LEVEL", value = "info" }
     ]
 
     logConfiguration = {
@@ -172,6 +175,8 @@ resource "aws_ecs_service" "beer_service" {
   network_configuration {
     subnets          = aws_subnet.public[*].id
     security_groups  = [aws_security_group.internal.id]
+    # Public IP required for ECR image pulls and CloudWatch log delivery without a NAT Gateway.
+    # Security groups ensure these tasks are unreachable from the internet.
     assign_public_ip = true
   }
 
@@ -195,6 +200,8 @@ resource "aws_ecs_service" "order_service" {
   network_configuration {
     subnets          = aws_subnet.public[*].id
     security_groups  = [aws_security_group.internal.id]
+    # Public IP required for ECR image pulls and CloudWatch log delivery without a NAT Gateway.
+    # Security groups ensure these tasks are unreachable from the internet.
     assign_public_ip = true
   }
 

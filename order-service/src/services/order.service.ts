@@ -33,15 +33,19 @@ async function handlePlaceOrder(call: ServerWritableStream<PlaceOrderRequest, Or
       setTimeout(() => {
         if (call.destroyed) return resolve();
 
-        call.write({
-          beer_ready: {
-            beer_id: beer.id,
-            beer_name: beer.name,
-            quantity: item.quantity,
-          },
-        });
+        try {
+          call.write({
+            beer_ready: {
+              beer_id: beer.id,
+              beer_name: beer.name,
+              quantity: item.quantity,
+            },
+          });
+          log.info({ beer_id: beer.id, beer_name: beer.name, quantity: item.quantity }, 'Beer ready');
+        } catch (err) {
+          log.warn({ beer_id: beer.id, err }, 'Failed to write beer_ready — client disconnected');
+        }
 
-        log.info({ beer_id: beer.id, beer_name: beer.name, quantity: item.quantity }, 'Beer ready');
         resolve();
       }, totalMs);
     });
@@ -55,17 +59,24 @@ async function handlePlaceOrder(call: ServerWritableStream<PlaceOrderRequest, Or
 
   log.info({ total_beers }, 'Order complete');
 
-  call.write({
-    order_complete: {
-      order_id: crypto.randomUUID(),
-      beers: items.map((i) => ({
-        beer_id: i.beer_id,
-        beer_name: beerMap.get(i.beer_id)?.name ?? '',
-        quantity: i.quantity,
-      })),
-      total_beers,
-    },
-  });
+  try {
+    call.write({
+      order_complete: {
+        order_id: crypto.randomUUID(),
+        beers: items
+          .filter((i) => beerMap.has(i.beer_id))
+          .map((i) => ({
+            beer_id: i.beer_id,
+            beer_name: beerMap.get(i.beer_id)!.name,
+            quantity: i.quantity,
+          })),
+        total_beers,
+      },
+    });
+  } catch (err) {
+    log.warn({ err }, 'Failed to write order_complete — client disconnected');
+    return;
+  }
 
   call.end();
 }

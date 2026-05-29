@@ -1,3 +1,3 @@
 import pino from 'pino';
 
-export const logger = pino({ name: 'order-service' });
+export const logger = pino({ name: 'order-service', level: process.env.LOG_LEVEL ?? 'info' });
