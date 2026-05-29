@@ -1,12 +1,13 @@
 {
-  "name": "Foreside — Local (Orbstack)",
+  "name": "Foreside — Local",
   "values": [
     {
       "key": "base_url",
-      "value": "http://gateway.foreside-beer-case.orb.local",
+      "value": "http://localhost:3000",
       "type": "default",
       "enabled": true
     }
   ],
-  "_postman_variable_scope": "environment"
+  "_postman_variable_scope": "environment",
+  "_comment": "Default: http://localhost:3000. If using Orbstack, change base_url to http://gateway.foreside-beer-case.orb.local"
 }

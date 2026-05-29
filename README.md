@@ -120,11 +120,24 @@ cd gateway && npm run generate && cd ..
 docker compose up --build
 ```
 
-The gateway will be available at `http://localhost:3000`.
+The gateway will be available at `http://localhost:3000`. The microservices run on the internal Docker network and are not directly accessible.
 
-If you're using **Orbstack**, each container gets a named URL automatically. Use `http://gateway.foreside-beer-case.orb.local` instead — this avoids port conflicts with other local services.
+> **Orbstack users:** containers get a named URL automatically — use `http://gateway.foreside-beer-case.orb.local` instead of `localhost:3000` to avoid port conflicts.
 
-The microservices run on the internal Docker network and are not directly accessible.
+### Run the integration tests
+
+With Docker Compose running:
+
+```bash
+cd tests && npm install && npm test
+```
+
+Tests hit the gateway over HTTP and verify streaming behaviour end-to-end. By default they use `http://localhost:3000`. Override with:
+
+```bash
+BASE_URL=http://gateway.foreside-beer-case.orb.local npm test   # Orbstack
+BASE_URL=http://<alb-dns-name> npm test                          # AWS
+```
 
 ---
 
@@ -242,10 +255,14 @@ terraform destroy
 Import both files from the `postman/` directory into Postman:
 
 1. `foreside-beer-case.collection.json` — 5 pre-built requests
-2. `environment.local.json` — points to the Orbstack local URL
+2. `environment.local.json` — points to `http://localhost:3000` by default
 3. `environment.aws.json` — points to the AWS ALB (update `base_url` after `terraform apply`)
 
-Select the active environment from the top-right dropdown before running requests. The collection includes a streaming order request that demonstrates the concurrent pouring behaviour — watch events arrive out of request order as faster beers finish first.
+Select the active environment from the top-right dropdown before running requests.
+
+If you're using Orbstack, edit `environment.local.json` and change `base_url` to `http://gateway.foreside-beer-case.orb.local`.
+
+The collection includes a streaming order request that demonstrates concurrent pouring — watch events arrive out of request order as faster beers finish first.
 
 ---
 
