@@ -23,8 +23,34 @@ Three services, each with a single responsibility:
 **API Gateway** is the only thing Postman talks to. It receives normal HTTP/JSON requests, validates them, translates them into gRPC calls to the microservices, and streams the results back. It contains no business logic — it's purely a translator and traffic router.
 
 ```
-Postman  →  API Gateway  →  OrderService  →  BeerService
-              (REST/JSON)      (gRPC)           (gRPC)
+┌─────────────────────────────────────────────────────────────────┐
+│                         Your machine                            │
+│                                                                 │
+│   Postman / curl                                                │
+│       │                                                         │
+│       │  POST /order  { items: [{ beer_id: 1 }, { beer_id: 8}] }│
+│       ▼                                                         │
+│  ┌─────────────┐                                                │
+│  │ API Gateway │  :3000  (only service exposed to the world)    │
+│  │  (Fastify)  │                                                │
+│  └──────┬──────┘                                                │
+│         │  gRPC PlaceOrder(items)          internal network     │
+│         ▼                                                       │
+│  ┌──────────────┐   gRPC GetBeersByIds   ┌─────────────┐        │
+│  │ OrderService │ ──────────────────────▶│ BeerService │        │
+│  │              │ ◀──────────────────────│             │        │
+│  │   :50052     │   [beer details]       │   :50051    │        │
+│  └──────┬───────┘                        └─────────────┘        │
+│         │                                                       │
+│         │  pours all beers simultaneously                       │
+│         │                                                       │
+│         │  t=5s  ──▶ stream: beer_ready { Pilsner Urquell }     │
+│         │  t=21s ──▶ stream: beer_ready { Guinness }            │
+│         │  t=21s ──▶ stream: order_complete { total_beers: 2 }  │
+│         ▼                                                       │
+│  API Gateway streams each event back to Postman as it arrives   │
+│  (newline-delimited JSON — one line per event)                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 The microservices are on a private internal network. Only the gateway is reachable from outside.
@@ -94,7 +120,11 @@ cd gateway && npm run generate && cd ..
 docker compose up --build
 ```
 
-The gateway will be available at `http://localhost:3000`. The microservices run on the internal Docker network and are not directly accessible.
+The gateway will be available at `http://localhost:3000`.
+
+If you're using **Orbstack**, each container gets a named URL automatically. Use `http://gateway.foreside-beer-case.orb.local` instead — this avoids port conflicts with other local services.
+
+The microservices run on the internal Docker network and are not directly accessible.
 
 ---
 
@@ -141,26 +171,81 @@ The response streams back as beers finish pouring (newline-delimited JSON):
 
 ---
 
-## Deploying to AWS
+## AWS Architecture
 
-You'll need the AWS CLI configured and Terraform installed (`brew install terraform`).
+```
+Internet
+    │  HTTP :80
+    ▼
+┌───────────────────────────────────────────────┐
+│  AWS (eu-west-1)                              │
+│                                               │
+│  ┌─────────────────────────────────────────┐  │
+│  │  VPC  10.0.0.0/16                       │  │
+│  │                                         │  │
+│  │  ┌──────────────────────────────────┐   │  │
+│  │  │  Public Subnets (AZ a + b)       │   │  │
+│  │  │                                  │   │  │
+│  │  │  ┌─────┐   :3000  ┌─────────┐   │   │  │
+│  │  │  │ ALB │ ────────▶│ Gateway │   │   │  │
+│  │  │  └─────┘          │  (ECS)  │   │   │  │
+│  │  │                   └────┬────┘   │   │  │
+│  │  │                        │ gRPC   │   │  │
+│  │  │           ┌────────────┼──────┐ │   │  │
+│  │  │           ▼            ▼      │ │   │  │
+│  │  │     ┌──────────┐  ┌─────────┐ │ │   │  │
+│  │  │     │  Order   │  │  Beer   │ │ │   │  │
+│  │  │     │ Service  │  │ Service │ │ │   │  │
+│  │  │     │  (ECS)   │  │  (ECS)  │ │ │   │  │
+│  │  │     └──────────┘  └─────────┘ │ │   │  │
+│  │  │     :50052              :50051 │ │   │  │
+│  │  │     └──────────────────────── ┘ │   │  │
+│  │  │     service discovery: foreside.local   │  │
+│  │  └──────────────────────────────────┘   │  │
+│  │                                         │  │
+│  │  ECR (image registry)  CloudWatch (logs)│  │
+│  └─────────────────────────────────────────┘  │
+└───────────────────────────────────────────────┘
+```
+
+## Infrastructure (Terraform)
+
+All AWS infrastructure is defined in the `terraform/` directory. The configuration provisions:
+
+- **VPC** with two public subnets across two availability zones
+- **ECR** repositories for each service image
+- **ECS Fargate** cluster with one task per service
+- **Application Load Balancer** routing port 80 to the gateway
+- **AWS Cloud Map** for private DNS-based service discovery (`beer-service.foreside.local`)
+- **Security groups** — only the gateway is reachable from the internet; microservices accept traffic from the gateway only
+- **IAM roles** with least-privilege per service
+- **CloudWatch** log groups with 7-day retention
+
+A full plan showing all 44 resources is committed at `terraform/plan.out`. To deploy against a real AWS account:
 
 ```bash
 cd terraform
 terraform init
-terraform plan   # preview what gets created
-terraform apply  # deploy
+terraform apply
 ```
 
-This provisions a VPC, ECS Fargate cluster, ECR image repositories, an Application Load Balancer, and the IAM roles and security groups that keep everything locked down.
-
-When you're done evaluating, tear it all down with:
+Tear down when done:
 
 ```bash
 terraform destroy
 ```
 
-Expected cost on AWS Free Tier for the duration of this assessment: **$0**.
+---
+
+## Testing with Postman
+
+Import both files from the `postman/` directory into Postman:
+
+1. `foreside-beer-case.collection.json` — 5 pre-built requests
+2. `environment.local.json` — points to the Orbstack local URL
+3. `environment.aws.json` — points to the AWS ALB (update `base_url` after `terraform apply`)
+
+Select the active environment from the top-right dropdown before running requests. The collection includes a streaming order request that demonstrates the concurrent pouring behaviour — watch events arrive out of request order as faster beers finish first.
 
 ---
 
