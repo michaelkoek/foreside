@@ -1,5 +1,10 @@
 resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-cluster"
+
+  setting {
+    name  = "containerInsights"
+    value = "disabled"
+  }
 }
 
 resource "aws_cloudwatch_log_group" "beer_service" {
@@ -173,6 +178,11 @@ resource "aws_ecs_service" "beer_service" {
   service_registries {
     registry_arn = aws_service_discovery_service.beer_service.arn
   }
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 }
 
 resource "aws_ecs_service" "order_service" {
@@ -190,6 +200,11 @@ resource "aws_ecs_service" "order_service" {
 
   service_registries {
     registry_arn = aws_service_discovery_service.order_service.arn
+  }
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
   }
 }
 
@@ -210,6 +225,11 @@ resource "aws_ecs_service" "gateway" {
     target_group_arn = aws_lb_target_group.gateway.arn
     container_name   = "gateway"
     container_port   = 3000
+  }
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
   }
 
   depends_on = [aws_lb_listener.http]

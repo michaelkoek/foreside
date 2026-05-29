@@ -20,8 +20,8 @@ provider "aws" {
   region = var.aws_region
 }
 
-data "aws_availability_zones" "available" {
-  state = "available"
+locals {
+  azs = ["${var.aws_region}a", "${var.aws_region}b"]
 }
 
 # VPC
@@ -44,7 +44,7 @@ resource "aws_subnet" "public" {
   count             = 2
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.${count.index}.0/24"
-  availability_zone = data.aws_availability_zones.available.names[count.index]
+  availability_zone = local.azs[count.index]
 
   tags = { Name = "${var.project_name}-public-${count.index + 1}" }
 }

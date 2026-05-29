@@ -7,11 +7,12 @@ resource "aws_lb" "main" {
 }
 
 resource "aws_lb_target_group" "gateway" {
-  name        = "${var.project_name}-gateway"
-  port        = 3000
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
-  target_type = "ip"
+  name                 = "${var.project_name}-gateway"
+  port                 = 3000
+  protocol             = "HTTP"
+  vpc_id               = aws_vpc.main.id
+  target_type          = "ip"
+  deregistration_delay = 30
 
   health_check {
     path                = "/health"
